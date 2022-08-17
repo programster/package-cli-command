@@ -23,6 +23,16 @@ instead.
 ```php
 class DockerEnter extends \Programster\Command\Command
 {
+    /**
+     * This is your entrypoint for the program when it is being told to execute, and not being
+     * asked by BASH for tab-completion hints. 
+     * @param array $options - an associative array of option-name/value pairs provided by the user.
+     * E.g. a user passing --encoding=hevc would turn into ["encoding" => "hevc"]
+     * @param array $switches - an associative array of switch-name/value pairs provided by the user.
+     * E.g. a user passing --recursive would turn into ["recursive" => true]
+     * @param array $args - a collection of arguments passed by the user.
+     * @return void
+     */
     public function execute(array $options, array $switches, array $args): void
     {
         if (count($args) !== 1)
@@ -61,6 +71,11 @@ class DockerEnter extends \Programster\Command\Command
         }
     }
     
+    /**
+     * Get a list of possible arguments for tab completion. In this case, we want to return a list
+     * of all the running container names. 
+     * @return array|null - all the hints, or an empty array/null if there are none.
+     */
     public function getPossibleArgs(): ?array
     {
         $hints = [];
@@ -77,6 +92,12 @@ class DockerEnter extends \Programster\Command\Command
         return $hints;
     }
     
+    
+    /**
+     * Returns the list of possible options (e.g. --something=value). In this case we allow the
+     * user to optionally set the shell to "sh" instead of the default of "bash"
+     * @return CommandOptionCollection|null
+     */
     public function getOptions(): ?CommandOptionCollection
     {
         return new CommandOptionCollection(
@@ -84,21 +105,40 @@ class DockerEnter extends \Programster\Command\Command
         );
     }
 
+    /**
+     * Set the switches (E.G. --something-on). In this case we have none.  
+     * @return CommandSwitchCollection|null
+     */
     public function getSwitches(): ?CommandSwitchCollection
     {
         return null;
     }
 
+    /**
+     * Get a collection of any possible subcommands. In future we may wrap this DockerEnter 
+     * command within a parent "DockerHelper" command, in which case this would return the
+     * DockerEnter class inside a collection.
+     * @return CommandCollection|null
+     */
     public function getSubCommands(): ?CommandCollection
     {
         return null;
     }
 
+    /**
+     * Get the name of this command, should it ever become a subcommand of another  
+     * command in future.
+     * @return string
+     */
     public function getName(): string
     {
         return "enter";
     }
 }
+
+// Need to call the command
+$command = new DockerHelper();
+$command->run();
 ```
 
 ## Install Command

@@ -18,7 +18,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Programster\\Command\\": "src/"
+            "Programster\\Command\\": "src/",
+            "Programster\\Command\\Exceptions\\": "src/exceptions/"
         }
     }
 }

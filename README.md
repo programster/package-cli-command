@@ -166,7 +166,7 @@ command you created called `my-command`.
 #!/usr/bin/env bash
 __my_command_completions()
 {
-    readarray -t COMPREPLY <<< $(my-command --autocomplete-help ${COMP_LINE})
+    readarray -t COMPREPLY <<< $(my-command --autocomplete-help ${COMP_POINT} ${COMP_LINE})
 }
 
 complete -F __my_command_completions dothis

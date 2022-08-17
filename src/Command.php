@@ -16,11 +16,55 @@ abstract class Command
 
 
     /**
+     * Get the name of this command. This will match against arguments the user types.
+     * This only really applies if this command is acting as a subcommand to another command.
+     * @return string
+     */
+    abstract public function getName() : string;
+
+
+    /**
+     * Get all of the options that are applicable to this command. An option is something like
+     * --encoding=hevc (the user provides a value).
+     * @return CommandOptionCollection|null - a collectino of options, or possibly null if there are none
+     */
+    abstract public function getOptions() : ?CommandOptionCollection;
+
+
+    /**
+     * Get a list of possible arguments for tab completion. For example, if building a tool to help with Docker,
+     * this might look up the currently running containers, and return their ID's/names (if the tool
+     * is expecting a container name/ID).
+     *
+     * @return array|null - an array of string arguments, such as ["bob", "dick", "harry"], or possibly null if there
+     * are none.
+     */
+    abstract public function getPossibleArgs() : ?array;
+
+
+    /**
+     * Get all of the subcommands to this command, or null if there are no subcommands. A subcommand would be
+     * something like "remote" when you enter the command "git remote".
+     * @return CommandCollection|null
+     */
+    abstract public function getSubCommands() : ?CommandCollection;
+
+
+    /**
+     * Get all of the switcehs that are applicable to this command. An option is something like
+     * --recursive (the user doesn't provide a value, it just turns a setting "on"). Settings are
+     * assumed to be false/off if not provided.
+     * @return CommandOptionCollection|null - a collectino of options, or possibly null if there are none
+     */
+    abstract public function getSwitches() : ?CommandSwitchCollection;
+
+
+    /**
      * Validates this object has a correct structure. Normally this would be done in the constructor, but cannot
      * do that, because we need the user to be able to make their own constructors.
      * @return void
      */
-    final public function validate()
+    final protected function validate()
     {
         if ($this->getSubCommands() !== null && count($this->getSubCommands()) > 0)
         {
@@ -30,10 +74,62 @@ abstract class Command
             )
             {
                 $msg =
-                    "A command with subcommands cannot contain switches/options. " .
-                    "Perhaps you meant to add them the subcommand instead?";
+                    "The command {$this->getName()} caannot contain both subcommands and switches/options. " .
+                    "Perhaps you meant to add the switches/options to a subcommand instead?";
 
-                throw new Exception($msg);
+                throw new \ExceptionInvalidCommandDefinition($msg);
+            }
+        }
+
+        // check all option names are unique.
+        $optionNames = [];
+        $options = $this->getOptions() ?? [];
+
+        foreach ($options as $option)
+        {
+            /* @var $option CommandOption */
+            if (array_key_exists($option->getLonghandName(), $optionNames))
+            {
+                throw new \ExceptionInvalidCommandDefinition("Option name: {$option->getLonghandName()} is not unique.");
+            }
+            else
+            {
+                $optionNames[$option->getLonghandName()] = 1;
+            }
+
+            if (array_key_exists($option->getShorthandName(), $optionNames))
+            {
+                throw new \ExceptionInvalidCommandDefinition("Option name: {$option->getShorthandName()} is not unique.");
+            }
+            else
+            {
+                $optionNames[$option->getShorthandName()] = 1;
+            }
+        }
+
+        // check all switch names are unique.
+        $switchNames = [];
+        $switches = $this->getSwitches() ?? [];
+
+        foreach ($switches as $switch)
+        {
+            /* @var $switch CommandSwitch */
+            if (array_key_exists($switch->getLonghandName(), $switchNames))
+            {
+                throw new \ExceptionInvalidCommandDefinition("Switch name: {$switch->getLonghandName()} is not unique.");
+            }
+            else
+            {
+                $switchNames[$switch->getLonghandName()] = 1;
+            }
+
+            if (array_key_exists($switch->getShorthandName(), $switchNames))
+            {
+                throw new \ExceptionInvalidCommandDefinition("Switch shorthand: {$switch->getShorthandName()} is not unique.");
+            }
+            else
+            {
+                $switchNames[$switch->getShorthandName()] = 1;
             }
         }
     }
@@ -45,7 +141,7 @@ abstract class Command
      * accordingly.
      * @return void
      */
-    public function run()
+    final public function run()
     {
         $this->validate(); // normally this would go in the constructor, but can't do that as this is an abstract class.
 
@@ -55,8 +151,9 @@ abstract class Command
         {
             if ($argv[1] === "--autocomplete-help")
             {
-                $currentTypedWords = array_slice($argv, 2);
-                $helpOptions = $this->handleAutocompleteRequest($currentTypedWords);
+                $cursorHasSpaceAfterLastWord = (intval($argv[2]) === 1);
+                $currentTypedWords = array_slice($argv, 3);
+                $helpOptions = $this->handleAutocompleteRequest($currentTypedWords, $cursorHasSpaceAfterLastWord);
                 print(implode(PHP_EOL, $helpOptions));
             }
             elseif ($argv[1] === "--generate-autocomplete-file")
@@ -85,7 +182,7 @@ abstract class Command
      * @return array
      * @throws \Exception
      */
-    protected function handleAutocompleteRequest(array $args) : array
+    protected function handleAutocompleteRequest(array $args, bool $cursorHasSpaceAfterLastWord) : array
     {
         $hints = [];
 
@@ -103,65 +200,65 @@ abstract class Command
             {
                 $isLastWord = ($index === (count($args) - 1));
 
+                if ($isLastWord && $cursorHasSpaceAfterLastWord)
+                {
+                    $hints = array_merge($hints, $this->getSubCommandNames());
+                    $hints = array_merge($hints, $this->getSwitchNames(true));
+                    $hints = array_merge($hints, $this->getOptionNames(true));
+                    $hints = array_merge($hints, ($this->getPossibleArgs() ?? []));
+                    break;
+                }
+
+                // Handle autocompleting last word switch. If switch/option and not last word dont care.
                 if (str_starts_with($arg,"-"))
                 {
-                    // should be a switch/option
                     if ($isLastWord)
                     {
-                        if (str_contains($arg,"="))
+                        if ($cursorHasSpaceAfterLastWord === false)
                         {
-                            // this is a completely typed option with either a partial or complete value.
-                            $pos = strpos($arg, "=");
-                            $optionName = substr($arg, 0, $pos);
-                            $option = $this->getOptionByName($optionName);
-                            $optionValue = substr($arg, $pos + 1);
-                            $hints = array_merge($hints, $option->getPartialMatchingOptionValues($optionValue));
+                            if (str_contains($arg,"="))
+                            {
+                                // this is a completely typed option name with either a partial or complete value.
+                                $pos = strpos($arg, "=");
+                                $optionName = substr($arg, 0, $pos);
+                                $option = $this->getOptionByName($optionName);
+                                $optionValue = substr($arg, $pos + 1);
+                                $hints = array_merge($hints, $option->getPartialMatchingOptionValues($optionValue));
+                            }
+                            else
+                            {
+                                // check if partially completed switch/option in which case return those that it could be,
+                                // if not, then return all other possible switches/options/subommands/args.
+                                $hints = array_merge($hints, $this->getPartialMatchingSwitches($arg));
+                                $hints = array_merge($hints, $this->getPartialMatchingOptions($arg));
+                            }
                         }
                         else
                         {
-                            // check if partially completed switch/option in which case return those that it could be,
-                            // if not, then return all other possible switches/options/subommands/args.
-                            $hints = array_merge($hints, $this->getPartialMatchingSwitches($arg));
-                            $hints = array_merge($hints, $this->getPartialMatchingOptions($arg));
-                        }
-
-
-                        if (count($hints) === 0)
-                        {
-                            // assume that the user has completed an argument, and that they are looking for all available
-                            // remaining switches/options etc. If this is the first
-                            // @TODO - it would be great to be able to tell if there was a space after the last word.
-                            // Perhaps bash autocomplete caret position can assist with this.
-                            $hints = array_merge($hints, $this->getSubCommandNames());
-                            $hints = array_merge($hints, $this->getSwitchNames(true));
-                            $hints = array_merge($hints, $this->getOptionNames(true));
-                            $hints = array_merge($hints, ($this->getPossibleArgs()) ?? []);
+                            // already handled at start of foreach.
+                            // output all switches/options/subcommands etc.
                         }
                     }
                     else
                     {
-                        // continue, as only really care about last word if this word is not a subcommand to hand off to.
-                        continue;
+                        // don't care about swithches/args that arent the last item. Nothing to autocomplete.
                     }
                 }
                 else
                 {
-                    // either a command or an arg. Check if is a full command, if so, then hand off to that command to
-                    // handle the remaining auto complete.
+                    // This is either a command or an arg. Check if is a full command, if so, then hand off to that
+                    // command to handle the remaining auto complete.
                     if (in_array($arg, $this->getSubCommandNames()))
                     {
                         $subCommand = $this->getSubCommandByName($arg);
                         $remainingArgs = array_slice($args, 1);
-                        $hints = $subCommand->handleAutocompleteRequest($remainingArgs);
+                        $hints = $subCommand->handleAutocompleteRequest($remainingArgs, $cursorHasSpaceAfterLastWord);
                         break;
                     }
 
                     if ($isLastWord)
                     {
-                        $hints = array_merge($hints, $this->getPartialMatchingSubcommands($arg));
-                        $hints = array_merge($hints, $this->getPartialMatchingArgs($arg));
-
-                        if (count($hints) === 0)
+                        if ($cursorHasSpaceAfterLastWord)
                         {
                             // assume that the user has completed an argument, and that they are looking for all available
                             // remaining switches/options etc. If this is the first
@@ -171,6 +268,11 @@ abstract class Command
                             $hints = array_merge($hints, $this->getSwitchNames(true));
                             $hints = array_merge($hints, $this->getOptionNames(true));
                             $hints = array_merge($hints, ($this->getPossibleArgs() ?? []));
+                        }
+                        else
+                        {
+                            $hints = array_merge($hints, $this->getPartialMatchingSubcommands($arg));
+                            $hints = array_merge($hints, $this->getPartialMatchingArgs($arg));
                         }
                     }
                     else
@@ -283,6 +385,9 @@ abstract class Command
     }
 
 
+
+
+
     /**
      * Whether to include the -- or - charagers before the option names.
      * @param bool $includeHyphens
@@ -339,13 +444,7 @@ abstract class Command
     }
 
 
-    /**
-     * Get a list of possible arguments for tab completion. For example, if building a tool to help with docker,
-     * this might look up the currently running containers, and return their ID's/names (if the tool
-     * is expecting a container name/ID).
-     * @return array|null
-     */
-    abstract public function getPossibleArgs() : ?array;
+
 
 
     /**
@@ -510,7 +609,15 @@ abstract class Command
 '#!/usr/bin/env bash
 __' . $commandNameUnderscores . '_completions()
 {
-    readarray -t COMPREPLY <<< $(' . $commandName . ' --autocomplete-help ${COMP_LINE})
+    REGEXP="*[[:space:]]"
+
+    if [[ ${COMP_LINE} == ${REGEXP} ]]; then
+        ENDS_IN_SPACE=1
+    else
+        ENDS_IN_SPACE=0
+    fi
+    
+    readarray -t COMPREPLY <<< $(' . $commandName . ' --autocomplete-help ${ENDS_IN_SPACE} ${COMP_LINE})
 }
 
 complete -F __' . $commandNameUnderscores . '_completions ' . $commandName . PHP_EOL;
@@ -587,10 +694,4 @@ complete -F __' . $commandNameUnderscores . '_completions ' . $commandName . PHP
         return $matchedOption;
     }
 
-
-    # Accessors
-    abstract public function getName() : string;
-    abstract public function getOptions() : ?CommandOptionCollection;
-    abstract public function getSwitches() : ?CommandSwitchCollection;
-    abstract public function getSubCommands() : ?CommandCollection;
 }

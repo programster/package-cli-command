@@ -2,6 +2,7 @@
 <?php
 
 use Programster\Command\BasicCommandOption;
+use Programster\Command\Command;
 use Programster\Command\CommandOptionCollection;
 use Programster\Command\CommandSwitchCollection;
 use Programster\Command\CommandCollection;
@@ -10,7 +11,7 @@ require_once(__DIR__ . '/../vendor/autoload.php');
 
 
 
-class DockerEnter extends \Programster\Command\Command
+class DockerEnter extends Command
 {
     public function execute(array $options, array $switches, array $args): void
     {
@@ -89,7 +90,7 @@ class DockerEnter extends \Programster\Command\Command
 }
 
 
-class DockerList extends \Programster\Command\Command
+class DockerList extends Command
 {
     public function execute(array $options, array $switches, array $args): void
     {
@@ -132,7 +133,7 @@ class DockerList extends \Programster\Command\Command
 }
 
 
-class DockerHelper extends \Programster\Command\Command
+class DockerHelper extends Command
 {
     public function execute(array $options, array $switches, array $args): void
     {

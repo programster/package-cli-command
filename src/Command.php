@@ -412,11 +412,11 @@ abstract class Command
             foreach ($options as $option)
             {
                 /* @var $option CommandOption */
-                $optionNames[] = ($includeHyphens) ? "--{$option->getLonghandName()}" : $option->getLonghandName();
+                $optionNames[] = ($includeHyphens) ? "--{$option->getLonghandName()}=" : $option->getLonghandName();
 
                 if ($option->getShorthandName() !== null)
                 {
-                    $optionNames[] = ($includeHyphens) ? "-{$option->getShorthandName()}" : $option->getShorthandName();
+                    $optionNames[] = ($includeHyphens) ? "-{$option->getShorthandName()}=" : $option->getShorthandName();
                 }
             }
         }
@@ -451,9 +451,6 @@ abstract class Command
 
         return $switchNames;
     }
-
-
-
 
 
     /**
@@ -629,7 +626,11 @@ __' . $commandNameUnderscores . '_completions()
     readarray -t COMPREPLY <<< $(' . $commandName . ' --autocomplete-help ${ENDS_IN_SPACE} ${COMP_LINE})
 }
 
-complete -F __' . $commandNameUnderscores . '_completions ' . $commandName . PHP_EOL;
+complete -o nospace -F __' . $commandNameUnderscores . '_completions ' . $commandName . PHP_EOL;
+        // -o nospace makes sure tab wont append a space after filling in a suggestion.
+        // this is required for us to keep the cursor beside the end of a "--my-option=" so that we then suggest values
+        // for the option:
+        // https://stackoverflow.com/questions/2339246/add-spaces-to-the-end-of-some-bash-autocomplete-options-but-not-to-others
 
         echo $content;
     }

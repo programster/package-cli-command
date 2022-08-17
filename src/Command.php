@@ -200,15 +200,6 @@ abstract class Command
             {
                 $isLastWord = ($index === (count($args) - 1));
 
-                if ($isLastWord && $cursorHasSpaceAfterLastWord)
-                {
-                    $hints = array_merge($hints, $this->getSubCommandNames());
-                    $hints = array_merge($hints, $this->getSwitchNames(true));
-                    $hints = array_merge($hints, $this->getOptionNames(true));
-                    $hints = array_merge($hints, ($this->getPossibleArgs() ?? []));
-                    break;
-                }
-
                 // Handle autocompleting last word switch. If switch/option and not last word dont care.
                 if (str_starts_with($arg,"-"))
                 {
@@ -235,49 +226,67 @@ abstract class Command
                         }
                         else
                         {
-                            // already handled at start of foreach.
-                            // output all switches/options/subcommands etc.
+                            // output all switches/options etc. Not outputting subcommands because subcommands should
+                            // never come after a switch/option.
+                            $hints = array_merge($hints, $this->getSwitchNames(true));
+                            $hints = array_merge($hints, $this->getOptionNames(true));
+                            $hints = array_merge($hints, ($this->getPossibleArgs() ?? []));
+                            break;
                         }
                     }
                     else
                     {
-                        // don't care about swithches/args that arent the last item. Nothing to autocomplete.
+                        // don't care about swithches/options that aren't the last item. Nothing to autocomplete.
                     }
                 }
                 else
                 {
-                    // This is either a command or an arg. Check if is a full command, if so, then hand off to that
-                    // command to handle the remaining auto complete.
-                    if (in_array($arg, $this->getSubCommandNames()))
+                    // This is either a command or an arg (doesn't start with -)
+                    if ($isLastWord === false)
                     {
-                        $subCommand = $this->getSubCommandByName($arg);
-                        $remainingArgs = array_slice($args, 1);
-                        $hints = $subCommand->handleAutocompleteRequest($remainingArgs, $cursorHasSpaceAfterLastWord);
-                        break;
-                    }
-
-                    if ($isLastWord)
-                    {
-                        if ($cursorHasSpaceAfterLastWord)
+                        // Check if is a full command, if so, then hand off to that
+                        // command to handle the remaining auto complete.
+                        if (in_array($arg, $this->getSubCommandNames()))
                         {
-                            // assume that the user has completed an argument, and that they are looking for all available
-                            // remaining switches/options etc. If this is the first
-                            // @TODO - it would be great to be able to tell if there was a space after the last word.
-                            // Perhaps bash autocomplete caret position can assist with this.
-                            $hints = array_merge($hints, $this->getSubCommandNames());
-                            $hints = array_merge($hints, $this->getSwitchNames(true));
-                            $hints = array_merge($hints, $this->getOptionNames(true));
-                            $hints = array_merge($hints, ($this->getPossibleArgs() ?? []));
+                            $subCommand = $this->getSubCommandByName($arg);
+                            $remainingArgs = array_slice($args, 1);
+                            $hints = $subCommand->handleAutocompleteRequest($remainingArgs, $cursorHasSpaceAfterLastWord);
+                            break;
                         }
                         else
                         {
-                            $hints = array_merge($hints, $this->getPartialMatchingSubcommands($arg));
-                            $hints = array_merge($hints, $this->getPartialMatchingArgs($arg));
+                            // this is just an arg in the middle of the entire string. Ignore it
                         }
                     }
                     else
                     {
-                        continue;
+                        // this is the last word in the string and it is either an arg or a subcommand
+                        if ($cursorHasSpaceAfterLastWord)
+                        {
+                            if (in_array($arg, $this->getSubCommandNames()))
+                            {
+                                $subCommand = $this->getSubCommandByName($arg);
+                                $remainingArgs = array_slice($args, 1);
+                                $hints = $subCommand->handleAutocompleteRequest($remainingArgs, $cursorHasSpaceAfterLastWord);
+                                break;
+                            }
+                            else
+                            {
+                                // this is an ending arg with a space after it, ignore the arg, and just output all
+                                // options for this command:
+                                $hints = array_merge($hints, $this->getSubCommandNames());
+                                $hints = array_merge($hints, $this->getOptionNames(true));
+                                $hints = array_merge($hints, $this->getSwitchNames(true));
+                                $hints = array_merge($hints, ($this->getPossibleArgs() ?? []));
+                            }
+                        }
+                        else
+                        {
+                            // this is potentially a partially completed argument or command. Output matches.
+                            $hints = array_merge($hints, $this->getPartialMatchingSubcommands($arg));
+                            $hints = array_merge($hints, $this->getPartialMatchingArgs($arg));
+                            break;
+                        }
                     }
                 }
             }

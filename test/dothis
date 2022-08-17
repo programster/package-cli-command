@@ -1,0 +1,178 @@
+#!/usr/bin/env php
+<?php
+
+use Programster\Command\BasicCommandOption;
+use Programster\Command\CommandOptionCollection;
+use Programster\Command\CommandSwitchCollection;
+use Programster\Command\CommandCollection;
+
+require_once(__DIR__ . '/../vendor/autoload.php');
+
+
+
+class DockerEnter extends \Programster\Command\Command
+{
+    public function execute(array $options, array $switches, array $args): void
+    {
+        if (count($args) !== 1)
+        {
+            throw new Exception("You must pass the ID or name of the container you wish to enter.");
+        }
+
+        $nameOrId = $args[0];
+
+        $info = shell_exec("docker ps --format '{{ json .}}'");
+        $lines = array_filter(explode(PHP_EOL, $info));
+        $handled = false;
+        $shell = array_key_exists("shell", $options) ? "/bin/{$options['shell']}" : "/bin/bash";
+
+        foreach ($lines as $line)
+        {
+            $containerArray = json_decode($line, true);
+
+            if ($containerArray['ID'] === $nameOrId)
+            {
+                passthru("docker exec -it {$containerArray['ID']} {$shell}");
+                $handled = true;
+                break;
+            }
+            elseif ($containerArray['Names'] === $nameOrId)
+            {
+                passthru("docker exec -it {$containerArray['ID']} {$shell}");
+                $handled = true;
+                break;
+            }
+        }
+
+        if (!$handled)
+        {
+            die("There is no container with that ID or name.");
+        }
+    }
+
+    public function getPossibleArgs(): ?array
+    {
+        $hints = [];
+        $info = shell_exec("docker ps --format '{{ json .}}'");
+        $lines = array_filter(explode(PHP_EOL, $info));
+
+        foreach ($lines as $line)
+        {
+            $containerArray = json_decode($line, true);
+            $hints[] = $containerArray['Names'];
+        }
+
+        return $hints;
+    }
+
+    public function getOptions(): ?CommandOptionCollection
+    {
+        return new CommandOptionCollection(
+            new BasicCommandOption("shell", "s", ["bash", "sh"])
+        );
+    }
+
+    public function getSwitches(): ?CommandSwitchCollection
+    {
+        return null;
+    }
+
+    public function getSubCommands(): ?CommandCollection
+    {
+        return null;
+    }
+
+    public function getName(): string
+    {
+        return "enter";
+    }
+}
+
+
+class DockerList extends \Programster\Command\Command
+{
+    public function execute(array $options, array $switches, array $args): void
+    {
+        $info = shell_exec("docker ps --format '{{ json .}}'");
+        $lines = array_filter(explode(PHP_EOL, $info));
+        $handled = false;
+        $shell = array_key_exists("shell", $options) ? "/bin/{$options['shell']}" : "/bin/bash";
+
+        foreach ($lines as $line)
+        {
+            $containerArray = json_decode($line, true);
+            print "{$containerArray['ID']} - {$containerArray['Names']}" . PHP_EOL;
+        }
+    }
+
+    public function getPossibleArgs(): ?array
+    {
+        return [];
+    }
+
+    public function getName(): string
+    {
+        return "list";
+    }
+
+    public function getOptions(): ?CommandOptionCollection
+    {
+        return new CommandOptionCollection();
+    }
+
+    public function getSwitches(): ?CommandSwitchCollection
+    {
+        return new CommandSwitchCollection();
+    }
+
+    public function getSubCommands(): ?CommandCollection
+    {
+        return new CommandCollection();
+    }
+}
+
+
+class DockerHelper extends \Programster\Command\Command
+{
+    public function execute(array $options, array $switches, array $args): void
+    {
+        die("You need to use one of the specified sub commands." . PHP_EOL);
+    }
+
+    public function getPossibleArgs(): ?array
+    {
+        return null;
+    }
+
+    public function getName(): string
+    {
+        return "dothis";
+    }
+
+    public function getOptions(): ?CommandOptionCollection
+    {
+        return null;
+    }
+
+    public function getSwitches(): ?CommandSwitchCollection
+    {
+        return null;
+    }
+
+    public function getSubCommands(): ?CommandCollection
+    {
+        return new CommandCollection(
+            new DockerEnter(),
+            new DockerList(),
+        );
+    }
+}
+
+
+$command = new DockerHelper();
+$command->run();
+
+
+
+
+

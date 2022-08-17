@@ -1,0 +1,24 @@
+{
+    "name": "programster/command",
+    "type": "library",
+    "description": "A library for making CLI commands.",
+    "keywords": ["CLI", "command"],
+    "homepage": "http://blog.programster.org/",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Programster",
+            "email": "sdpagent@gmail.com",
+            "homepage": "https://blog.programster.org/",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Programster\\Command\\": "src/"
+        }
+    }
+}

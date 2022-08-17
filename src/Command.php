@@ -416,7 +416,7 @@ abstract class Command
 
                 if ($option->getShorthandName() !== null)
                 {
-                    $optionNames[] = ($includeHyphens) ? "--{$option->getShorthandName()}" : $option->getShorthandName();
+                    $optionNames[] = ($includeHyphens) ? "-{$option->getShorthandName()}" : $option->getShorthandName();
                 }
             }
         }
@@ -444,7 +444,7 @@ abstract class Command
 
                 if ($switch->getShorthandName() !== null)
                 {
-                    $switchNames[] = ($includeHyphens) ? "--{$switch->getShorthandName()}" : $switch->getShorthandName();
+                    $switchNames[] = ($includeHyphens) ? "-{$switch->getShorthandName()}" : $switch->getShorthandName();
                 }
             }
         }

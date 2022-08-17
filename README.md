@@ -166,13 +166,23 @@ command you created called `my-command`.
 #!/usr/bin/env bash
 __my_command_completions()
 {
-    readarray -t COMPREPLY <<< $(my-command --autocomplete-help ${COMP_POINT} ${COMP_LINE})
+    REGEXP="*[[:space:]]"
+
+    if [[ ${COMP_LINE} == ${REGEXP} ]]; then
+        ENDS_IN_SPACE=1
+    else
+        ENDS_IN_SPACE=0
+    fi
+    
+    readarray -t COMPREPLY <<< $(my-command --autocomplete-help ${ENDS_IN_SPACE} ${COMP_LINE})
 }
 
-complete -F __my_command_completions dothis
+complete -o nospace -F __my_command_completions dothis
 ```
 
 Now open a new BASH shell, and you should see it working!.
 
 
+## Roadmap
+* Prevent suggesting options/switches that have already been passed.
 

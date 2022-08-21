@@ -189,10 +189,10 @@ abstract class Command
         if (count($args) === 0)
         {
             // output all possible subcommands/switches/options etc.
-            $hints = array_merge($hints, $this->getSubCommandNames());
+            $hints = array_merge($hints, $this->appendSpacesToArrayElements($this->getSubCommandNames()));
             $hints = array_merge($hints, $this->getOptionNames(true));
-            $hints = array_merge($hints, $this->getSwitchNames(true));
-            $hints = array_merge($hints, ($this->getPossibleArgs() ?? []));
+            $hints = array_merge($hints, $this->appendSpacesToArrayElements($this->getSwitchNames(true)));
+            $hints = array_merge($hints, ($this->appendSpacesToArrayElements($this->getPossibleArgs()) ?? []));
         }
         else
         {
@@ -214,13 +214,13 @@ abstract class Command
                                 $optionName = substr($arg, 0, $pos);
                                 $option = $this->getOptionByName($optionName);
                                 $optionValue = substr($arg, $pos + 1);
-                                $hints = array_merge($hints, $option->getPartialMatchingOptionValues($optionValue));
+                                $hints = array_merge($hints, $this->appendSpacesToArrayElements($option->getPartialMatchingOptionValues($optionValue)));
                             }
                             else
                             {
                                 // check if partially completed switch/option in which case return those that it could be,
                                 // if not, then return all other possible switches/options/subommands/args.
-                                $hints = array_merge($hints, $this->getPartialMatchingSwitches($arg));
+                                $hints = array_merge($hints, $this->appendSpacesToArrayElements($this->getPartialMatchingSwitches($arg)));
                                 $hints = array_merge($hints, $this->getPartialMatchingOptions($arg));
                             }
                         }
@@ -228,9 +228,9 @@ abstract class Command
                         {
                             // output all switches/options etc. Not outputting subcommands because subcommands should
                             // never come after a switch/option.
-                            $hints = array_merge($hints, $this->getSwitchNames(true));
+                            $hints = array_merge($hints, $this->appendSpacesToArrayElements($this->getSwitchNames(true)));
                             $hints = array_merge($hints, $this->getOptionNames(true));
-                            $hints = array_merge($hints, ($this->getPossibleArgs() ?? []));
+                            $hints = array_merge($hints, ($this->appendSpacesToArrayElements($this->getPossibleArgs()) ?? []));
                             break;
                         }
                     }
@@ -274,17 +274,17 @@ abstract class Command
                             {
                                 // this is an ending arg with a space after it, ignore the arg, and just output all
                                 // options for this command:
-                                $hints = array_merge($hints, $this->getSubCommandNames());
+                                $hints = array_merge($hints, $this->appendSpacesToArrayElements($this->getSubCommandNames()));
                                 $hints = array_merge($hints, $this->getOptionNames(true));
-                                $hints = array_merge($hints, $this->getSwitchNames(true));
-                                $hints = array_merge($hints, ($this->getPossibleArgs() ?? []));
+                                $hints = array_merge($hints, $this->appendSpacesToArrayElements($this->getSwitchNames(true)));
+                                $hints = array_merge($hints, $this->appendSpacesToArrayElements(($this->getPossibleArgs() ?? [])));
                             }
                         }
                         else
                         {
                             // this is potentially a partially completed argument or command. Output matches.
-                            $hints = array_merge($hints, $this->getPartialMatchingSubcommands($arg));
-                            $hints = array_merge($hints, $this->getPartialMatchingArgs($arg));
+                            $hints = array_merge($hints, $this->appendSpacesToArrayElements($this->getPartialMatchingSubcommands($arg)));
+                            $hints = array_merge($hints, $this->appendSpacesToArrayElements($this->getPartialMatchingArgs($arg)));
                             break;
                         }
                     }
@@ -702,6 +702,22 @@ complete -o nospace -F __' . $commandNameUnderscores . '_completions ' . $comman
         }
 
         return $matchedOption;
+    }
+
+
+    /**
+     * Helper method that simply appends a space to all of the values in an array.
+     * @param array $inputArray
+     * @return array
+     */
+    private function appendSpacesToArrayElements(array $inputArray)
+    {
+        foreach ($inputArray as $index => $value)
+        {
+            $inputArray[$index] = "{$value} ";
+        }
+
+        return $inputArray;
     }
 
 }

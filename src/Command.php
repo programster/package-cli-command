@@ -236,7 +236,7 @@ abstract class Command
                     }
                     else
                     {
-                        // don't care about swithches/options that aren't the last item. Nothing to autocomplete.
+                        // don't care about switches/options that aren't the last item. Nothing to autocomplete.
                     }
                 }
                 else

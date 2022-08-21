@@ -2,6 +2,9 @@
 
 namespace Programster\Command;
 
+use Programster\Command\exceptions\ExceptionInvalidCommandDefinition;
+use Programster\Command\exceptions\ExceptionInvalidSwitch;
+
 abstract class Command
 {
     /**
@@ -66,19 +69,19 @@ abstract class Command
      */
     final protected function validate()
     {
-        if ($this->getSubCommands() !== null && count($this->getSubCommands()) > 0)
-        {
-            if (
-                   ($this->getOptions() !== null && count($this->getOptions()) > 0)
-                || ($this->getSwitches() !== null && count($this->getSwitches()) > 0)
-            )
-            {
-                $msg =
-                    "The command {$this->getName()} caannot contain both subcommands and switches/options. " .
-                    "Perhaps you meant to add the switches/options to a subcommand instead?";
+        // check all subcommand names are unique.
+        $subCommandNames = [];
+        $subCommands = $this->getSubCommands();
 
-                throw new \ExceptionInvalidCommandDefinition($msg);
+        foreach ($subCommands as $subCommand)
+        {
+            /* @var $subCommand Command */
+            if (array_key_exists($subCommand->getName(), $subCommandNames))
+            {
+                throw new \ExceptionInvalidCommandDefinition("Sub command name: {$subCommand->getName()} is not unique.");
             }
+
+            $subCommandNames[$subCommand->getName()] = 1;
         }
 
         // check all option names are unique.
@@ -90,7 +93,7 @@ abstract class Command
             /* @var $option CommandOption */
             if (array_key_exists($option->getLonghandName(), $optionNames))
             {
-                throw new \ExceptionInvalidCommandDefinition("Option name: {$option->getLonghandName()} is not unique.");
+                throw new ExceptionInvalidCommandDefinition("Option name: {$option->getLonghandName()} is not unique.");
             }
             else
             {
@@ -99,7 +102,7 @@ abstract class Command
 
             if (array_key_exists($option->getShorthandName(), $optionNames))
             {
-                throw new \ExceptionInvalidCommandDefinition("Option name: {$option->getShorthandName()} is not unique.");
+                throw new ExceptionInvalidCommandDefinition("Option name: {$option->getShorthandName()} is not unique.");
             }
             else
             {
@@ -116,7 +119,7 @@ abstract class Command
             /* @var $switch CommandSwitch */
             if (array_key_exists($switch->getLonghandName(), $switchNames))
             {
-                throw new \ExceptionInvalidCommandDefinition("Switch name: {$switch->getLonghandName()} is not unique.");
+                throw new ExceptionInvalidCommandDefinition("Switch name: {$switch->getLonghandName()} is not unique.");
             }
             else
             {
@@ -125,7 +128,7 @@ abstract class Command
 
             if (array_key_exists($switch->getShorthandName(), $switchNames))
             {
-                throw new \ExceptionInvalidCommandDefinition("Switch shorthand: {$switch->getShorthandName()} is not unique.");
+                throw new ExceptionInvalidCommandDefinition("Switch shorthand: {$switch->getShorthandName()} is not unique.");
             }
             else
             {
@@ -332,7 +335,7 @@ abstract class Command
                 if ($hasOptionsOrSwitches)
                 {
                     // @todo - derive a better error message than this.
-                    throw new Exception("Cannot have switches or options before a subcommand.");
+                    throw new ExceptionInvalidCommandDefinition("Cannot have switches or options before a subcommand.");
                 }
             }
         }

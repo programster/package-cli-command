@@ -71,7 +71,7 @@ abstract class Command
     {
         // check all subcommand names are unique.
         $subCommandNames = [];
-        $subCommands = $this->getSubCommands();
+        $subCommands = $this->getSubCommands() ?? [];
 
         foreach ($subCommands as $subCommand)
         {
